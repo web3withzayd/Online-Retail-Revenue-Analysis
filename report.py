@@ -10,8 +10,13 @@ def main() -> None:
     )
     parser.add_argument(
         "input_file",
+        nargs="?",
         type=Path,
-        help="Path to a .csv, .csv.gz, or .xlsx input file.",
+        default=Path(__file__).resolve().parent / "data" / "online_retail_raw.csv",
+        help=(
+            "Path to a .csv, .csv.gz, or .xlsx input file "
+            "(default: data/online_retail_raw.csv)."
+        ),
     )
     parser.add_argument(
         "--output-dir",
@@ -22,8 +27,7 @@ def main() -> None:
     parser.add_argument(
         "--retain-dir",
         type=Path,
-        default=Path(__file__).resolve().parent / "processed_data",
-        help="Folder where cleaned data and summaries are retained.",
+        help="Optional folder where cleaned data and summaries are retained.",
     )
     parser.add_argument(
         "--rows",
@@ -44,22 +48,33 @@ def main() -> None:
 
     counts = result["counts"]
     print(f"Rows loaded: {counts['rows_loaded']:,}")
-    print(f"Cancellation rows removed: {counts['cancellation_rows_removed']:,}")
+    print(f"Cancellation rows included for netting: {counts['cancellation_rows_included']:,}")
     print(f"Duplicate rows removed: {counts['duplicate_rows_removed']:,}")
     print(
-        "Rows with missing values removed: "
-        f"{counts['rows_with_missing_values_removed']:,}"
+        "Rows missing required non-customer fields removed: "
+        f"{counts['rows_with_missing_non_customer_fields_removed']:,}"
     )
     print(
-        "Unique rows with zero/negative quantity or price removed: "
-        f"{counts['unique_nonpositive_rows_removed']:,}"
+        "Sales rows with zero/negative quantity or price removed: "
+        f"{counts['unique_nonpositive_sales_rows_removed']:,}"
     )
-    print(f"Rows remaining: {counts['rows_remaining']:,}")
+    print(
+        "Confirmed service/adjustment lines excluded from revenue reports: "
+        f"{counts['service_adjustment_rows_excluded_from_revenue_reports']:,}"
+    )
+    print(f"Rows used in revenue reports: {counts['revenue_rows_in_reports']:,}")
+    print(
+        f"Gross product sales: £{result['gross_sales_total']:,.2f}; "
+        f"cancellations: £{result['cancellations_total']:,.2f}; "
+        f"net product revenue: £{result['net_revenue_total']:,.2f}"
+    )
     print(f"Reports saved to: {args.output_dir}")
-    print(
-        f"Cleaned data and summaries retained at: "
-        f"{result['retained_dataset_dir']}"
-    )
+    print(f"Other nonstandard stock codes for review: {result['nonstandard_codes_file']}")
+    if result["retained_dataset_dir"] is not None:
+        print(
+            f"Cleaned data and summaries retained at: "
+            f"{result['retained_dataset_dir']}"
+        )
 
 
 if __name__ == "__main__":

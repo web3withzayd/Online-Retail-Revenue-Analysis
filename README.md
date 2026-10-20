@@ -3,96 +3,134 @@
 ## About the project
 
 This project uses the UCI Online Retail dataset to explore sales performance
-and answer practical revenue questions for a retail business. A Python script
-cleans the transaction data, calculates revenue, and produces charts and an
-Excel workbook that can be reviewed or shared.
+and answer practical revenue questions for a retail business. The Python
+reporting script validates and cleans transaction data, calculates net revenue,
+and creates charts and an Excel workbook.
 
-The analysis focuses on three questions:
+The analysis answers three questions:
 
-1. How does revenue change from month to month?
-2. Which 10 stock-code and description combinations have the highest revenue?
-3. Which 10 countries have the highest revenue?
+1. How does monthly net revenue change over time?
+2. Which 10 products have the highest net revenue?
+3. Which 10 countries have the highest net revenue, excluding the UK so the
+   other countries are easier to compare?
 
-Revenue is calculated in GBP by multiplying each row's quantity by its unit
-price. December 2011 is included and marked partial because the dataset ends
-on 9 December 2011.
+All three charts use the same net-revenue definition for confirmed product
+codes: gross sales minus cancellations. Cancellations are assigned to the
+month and country recorded on the cancellation row, i.e. when they were
+processed. Gross sales and cancellation amounts are also shown separately in
+the Excel summaries and chart footnotes. Amounts are in GBP.
+
+The final month is included and labelled partial when the latest transaction
+date falls before that month's end.
 
 ## Project files
 
-| File or folder         | What it contains                                                                                   |
-| ---------------------- | -------------------------------------------------------------------------------------------------- |
-| `report.py`          | Command-line entry point for running the analysis on a supplied data file.                         |
-| `retail_reports.py`  | Shared data validation, cleaning, revenue calculations, summaries, charts, and Excel export logic. |
-| `datacleaning.ipynb` | Notebook used to explore and document the data-cleaning and analysis steps.                        |
-| `data/`              | Source dataset files used by the project, including the raw CSV and Excel workbooks.               |
-| `output/`            | Generated charts, cancellation review CSV, and Excel report workbook.                              |
-| `tests/`             | Automated checks for the reporting and cleaning pipeline.                                          |
-| `requirements.txt`   | Python packages required to run the report.                                                        |
-| `.gitignore`         | Excludes local data, outputs, virtual environments, and generated files from Git.                  |
+| File or folder | What it contains |
+| --- | --- |
+| `report.py` | Command-line entry point for running the report on an input file. |
+| `retail_reports.py` | Data validation, cleaning, cancellation netting, summaries, chart generation, and Excel export. |
+| `datacleaning.ipynb` | Notebook used to explore and document the data-cleaning and analysis steps. |
+| `data/` | Source dataset files used by the project, including the raw CSV and Excel workbooks. |
+| `output/` | Generated charts, the Excel report, and review files from the latest saved run. |
+| `tests/` | Automated tests, including a three-row sale/cancellation netting example. |
+| `requirements.txt` | Python packages required to run the report. |
+| `.gitignore` | Excludes local data, outputs, virtual environments, and generated files from Git. |
 
 ## Questions answered and results
 
-The generated workbook, `output/online_retail_revenue_analysis.xlsx`, contains
-three sheets: Monthly Revenue, Top 10 Products, and Top 10 Countries. The
-corresponding charts are saved as PNG files in `output/`.
+Each report run creates an Excel workbook with sheets for Monthly Revenue,
+Top 10 Products, and Top 10 Countries ex UK. Each summary shows gross sales,
+cancellations, and net revenue. The PNG charts visualize net revenue.
 
-- **Revenue by month:** November 2011 is the highest full month in the saved
-  report, at **£1,156,205.61**. December 2011 is included at **£517,190.44**
-  and labelled partial.
-- **Top products by revenue:** The highest-ranked stock-code/description row
-  is `23843`, PAPER CRAFT, LITTLE BIRDIE, at **£168,469.60**.
-- **Top countries by revenue:** The United Kingdom ranks first at
-  **£7,285,024.64**.
+In the current full-data run, using the source file with the cleaning rules
+below:
 
-These figures are from the currently saved workbook and reflect the cleaning
-rules described below. The product ranking groups by stock code and
-description, but it also includes non-physical transaction codes such as
-`POST` (postage) and `M` (manual). Treat the results as revenue by recorded
-line code, not exclusively as a ranking of physical merchandise, unless those
-codes are separately classified.
+- **Monthly revenue:** November 2011 is the highest full month at
+  **£1,427,124.54 net**. December 2011 is marked partial and shows
+  **£440,407.89 net**.
+- **Top product:** StockCode `22423`, REGENCY CAKESTAND 3 TIER, leads at
+  **£164,459.49 net**.
+- **Top country outside the UK:** The Netherlands leads at
+  **£283,479.54 net**.
+- **Overall:** Gross product sales are **£10,247,905.13**, cancellations are
+  **£475,901.16**, and net product revenue is **£9,772,003.97**.
+- The UK accounts for **84.8% of net product-code revenue** in this run; the
+  percentage is calculated from the data and appears in the country chart
+  title.
+
+These results reflect the cleaning rules below and the currently confirmed
+non-product exclusions. In this run, 21 other stock codes did not fit the
+expected five-digit-plus-optional-letters pattern; they remain included and
+are listed for review, not excluded automatically.
 
 ## Process and cleaning choices
 
-The report script checks that the input contains the expected columns:
-`InvoiceNo`, `StockCode`, `Description`, `Quantity`, `InvoiceDate`,
-`UnitPrice`, `CustomerID`, and `Country`. If required columns are missing, it
-stops and reports which ones are absent.
+The script checks for `InvoiceNo`, `StockCode`, `Description`, `Quantity`,
+`InvoiceDate`, `UnitPrice`, `CustomerID`, and `Country`. It stops with an
+explicit error if a required column is missing.
 
-For the current analysis, it:
+For the current report, it:
 
-1. Identifies cancellation rows whose invoice number starts with `C`, saves
-   them separately for review, and excludes them from the revenue analysis.
-2. Removes exact duplicate rows.
-3. Removes rows with any missing value, including a missing `CustomerID`.
-4. Removes rows with zero or negative quantity or unit price.
-5. Calculates row revenue (`Quantity × UnitPrice`), groups dates by
-   year-month, and calculates the three requested summaries.
-6. Includes the final, incomplete month and labels it as partial.
+1. Identifies invoice numbers beginning with `C` as cancellations and keeps
+   those lines in the analysis with their negative revenue. It also writes a
+   separate cancellation review CSV.
+2. Removes exact duplicate rows from both sales and cancellation lines.
+3. Removes rows missing a required transaction field, but keeps rows with a
+   missing `CustomerID`. Customer IDs are not needed for these revenue
+   summaries; they can be filtered for a later customer-specific analysis.
+4. Removes sales rows with zero or negative quantity or unit price. Negative
+   cancellation quantities are retained so the cancellation can reduce net
+   revenue.
+5. Excludes these confirmed service/adjustment codes from all three revenue
+   charts: `AMAZONFEE`, `B`, `BANK CHARGES`, `C2`, `CRUK`, `D`, `DOT`, `M`,
+   `m`, `POST`, and `S`. StockCode matching is case-sensitive.
+6. Builds a review file for other source codes outside the expected product
+   code pattern. It includes descriptions, source line counts, and signed
+   value totals. These codes remain in the reports until individually
+   reviewed and approved for exclusion.
+7. Calculates line revenue as `Quantity × UnitPrice`, then groups by month,
+   stock code, or country. A cancellation reduces the product's net revenue
+   by stock code and is counted in the cancellation row's processing month
+   and country.
 
-For the full 541,909-row source file, the saved analysis records 9,288
-cancellations, 5,231 duplicate rows, 134,658 rows with at least one missing
-value, and 40 rows with zero or negative quantity or price removed. It retains
-392,692 rows for the reports. Counts occur in sequence: for example, missing
-values are counted after cancellations and duplicates have already been
-removed.
+For the full 541,909-row source file, the current run removed 5,268 exact
+duplicates, 1,454 rows missing non-customer transaction fields, and 1,058
+non-cancellation sales rows with non-positive quantity or price. It retained
+9,251 cancellation rows for netting and excluded 2,890 rows with the confirmed
+service/adjustment codes from the revenue charts. The three revenue summaries
+use 531,239 rows before grouping.
 
-Dropping every row with any missing value is a deliberate project rule, not a
-claim that a customer with a blank `CustomerID` does not exist. It means
-transactions without a recorded customer ID are excluded, which can affect
-reported revenue.
+The cancellation of `23843` PAPER CRAFT, LITTLE BIRDIE is a useful example:
+the 9 December 2011 sale is £168,469.60 and the cancellation is -£168,469.60,
+so the code's net revenue is £0.00. December's chart includes the cancellation
+in December because that is when it was processed.
 
 ## Reproducing the report
 
-With Python and the packages in `requirements.txt` installed, run the script
-from the project folder:
+With Python and the packages in `requirements.txt` installed, run this from
+the project folder:
 
 ```powershell
-python report.py data\online_retail_raw.csv
+python report.py
 ```
 
-The script writes charts, the Excel workbook, and the cancellation review file
-to `output/`. A full run also stores a cleaned compressed dataset and summary
-information in a uniquely named folder under `processed_data/`. The source
-files are read, not modified.
+By default, the script reads `data\online_retail_raw.csv` and saves the charts,
+Excel workbook, cancellation review CSV, and nonstandard-code review CSV to
+`output/`. It does not create a separate `processed_data/` folder or retain a
+cleaned copy unless you explicitly pass `--retain-dir`. The source file is
+never modified. To analyze a different file, provide its path after the
+command, for example:
 
-The source data is the [UCI Online Retail dataset](https://archive.ics.uci.edu/dataset/352/online-retail).
+```powershell
+python report.py path\to\another_file.xlsx
+```
+
+To also retain the cleaned transactions and run summaries, explicitly choose a
+separate folder:
+
+```powershell
+python report.py --retain-dir processed_data
+```
+
+The source data is the
+[UCI Online Retail dataset](https://archive.ics.uci.edu/dataset/352/online-retail).
